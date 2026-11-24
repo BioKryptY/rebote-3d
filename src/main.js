@@ -151,7 +151,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyR') jogo.reiniciar()
 })
 
-painelJogo(painel, controle, { reiniciar: () => jogo.reiniciar() })
+painelJogo(painel, controle, { reiniciar: () => jogo.reiniciar() }, jogo.config)
 
 // ---- telão no fundo do túnel: texturas dinâmicas com a saída do OpenCV ----
 function texturaDoCanvas(canvas) {

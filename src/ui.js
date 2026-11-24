@@ -101,9 +101,10 @@ export function painelGestos(gui, info, opcoes, acoes, gestos, nomes, zonas) {
 /**
  * @param {GUI} gui
  * @param {{modo: string, sensibilidade: number, suavizacao: number}} controle
- * @param {{reiniciar: Function, recentralizarCamera: Function}} acoes
+ * @param {{reiniciar: Function}} acoes
+ * @param {typeof import('./game/game.js').CONFIG_PADRAO} config regras da partida
  */
-export function painelJogo(gui, controle, acoes) {
+export function painelJogo(gui, controle, acoes, config) {
   const pasta = gui.addFolder('Jogo')
   pasta
     .add(controle, 'modo', { 'Objeto colorido na câmera': 'objeto', Mouse: 'mouse' })
@@ -111,6 +112,9 @@ export function painelJogo(gui, controle, acoes) {
     .listen()
   pasta.add(controle, 'sensibilidade', 0.8, 2.5, 0.05).name('Sensibilidade')
   pasta.add(controle, 'suavizacao', 0.05, 1, 0.05).name('Suavização temporal (1 = nenhuma)')
+  pasta.add(config, 'pontosParaVencer', 1, 15, 1).name('Pontos para vencer')
+  pasta.add(config, 'velocidadeInicial', 4, 16, 0.5).name('Velocidade do saque')
+  pasta.add(config, 'velocidadeCpu', 1, 12, 0.5).name('Velocidade da CPU')
   pasta.add(acoes, 'reiniciar').name('Reiniciar partida (R)')
   return pasta
 }
