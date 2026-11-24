@@ -90,7 +90,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 220px;
+  width: 240px;
   max-height: calc(100% - 80px);
   overflow-y: auto;
   padding: 8px;
@@ -102,6 +102,35 @@ body {
 
 .painel-visao figure {
   margin: 0;
+}
+
+.ajuda {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.ajuda summary {
+  cursor: pointer;
+  color: var(--destaque);
+  font-weight: 600;
+}
+
+.ajuda ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.ajuda li {
+  margin-bottom: 2px;
+}
+
+.ajuda p {
+  margin: 4px 0 0;
+}
+
+.ajuda strong,
+.ajuda em {
+  color: var(--texto);
 }
 
 .painel-visao canvas {

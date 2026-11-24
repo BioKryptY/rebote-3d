@@ -20,7 +20,7 @@ export function criarPainel() {
  * @param {{trocarFonte: Function, abrirVideo: Function, espelhar: Function}} acoes
  */
 export function painelCaptura(gui, estado, acoes) {
-  const pasta = gui.addFolder('Captura')
+  const pasta = gui.addFolder('Captura').close()
   pasta
     .add(estado, 'fonte', { Webcam: 'webcam', 'Arquivo de vídeo': 'arquivo' })
     .name('Fonte')
@@ -40,7 +40,8 @@ export function painelCaptura(gui, estado, acoes) {
 export function painelPDI(gui, pdi, acoes) {
   const pasta = gui.addFolder('Processamento de imagem (OpenCV.js)')
 
-  const suav = pasta.addFolder('1. Suavização')
+  // Só a etapa de cor fica aberta: é a que se mexe na calibração.
+  const suav = pasta.addFolder('1. Suavização').close()
   suav
     .add(pdi, 'suavizacao', { Nenhuma: 'nenhuma', Gaussiana: 'gaussiano', Mediana: 'mediana' })
     .name('Filtro')
@@ -56,11 +57,11 @@ export function painelPDI(gui, pdi, acoes) {
   cor.add(pdi, 'vMin', 0, 255, 1).name('V mínimo').listen()
   cor.add(pdi, 'vMax', 0, 255, 1).name('V máximo').listen()
 
-  const morf = pasta.addFolder('3. Morfologia')
+  const morf = pasta.addFolder('3. Morfologia').close()
   morf.add(pdi, 'abertura', 1, 15, 2).name('Abertura (1 = desligada)').listen()
   morf.add(pdi, 'fechamento', 1, 15, 2).name('Fechamento (1 = desligado)').listen()
 
-  const cont = pasta.addFolder('4. Contornos')
+  const cont = pasta.addFolder('4. Contornos').close()
   cont.add(pdi, 'areaMinima', 0, 3000, 10).name('Área mínima (px)').listen()
 
   pasta.add(acoes, 'restaurar').name('Restaurar padrão (objeto verde)')
@@ -105,7 +106,7 @@ export function painelGestos(gui, info, opcoes, acoes, gestos, nomes, zonas) {
  * @param {typeof import('./game/game.js').CONFIG_PADRAO} config regras da partida
  */
 export function painelJogo(gui, controle, acoes, config) {
-  const pasta = gui.addFolder('Jogo')
+  const pasta = gui.addFolder('Jogo').close()
   pasta
     .add(controle, 'modo', { 'Objeto colorido na câmera': 'objeto', Mouse: 'mouse' })
     .name('Raquete segue')
@@ -125,7 +126,7 @@ export function painelJogo(gui, controle, acoes, config) {
  * @param {{trocarTelao: Function, recentralizarCamera: Function}} acoes
  */
 export function painelCena(gui, opcoes, acoes) {
-  const pasta = gui.addFolder('Cena 3D (Three.js)')
+  const pasta = gui.addFolder('Cena 3D (Three.js)').close()
   pasta
     .add(opcoes, 'telao', {
       'Câmera com contorno': 'camera',
@@ -146,7 +147,7 @@ export function painelCena(gui, opcoes, acoes) {
  * @param {{comparar: Function}} acoes
  */
 export function painelComparacao(gui, resultados, acoes) {
-  const pasta = gui.addFolder('Comparação CPU × GPU')
+  const pasta = gui.addFolder('Comparação CPU × GPU').close()
   pasta.add(acoes, 'comparar').name('Medir (100 repetições)')
   pasta.add(resultados, 'cpu').name('CPU: OpenCV.js').disable().listen()
   pasta.add(resultados, 'gpuComLeitura').name('GPU: com envio e leitura').disable().listen()
