@@ -7,7 +7,7 @@ import { Captura } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
 import { criarPainel, criarStats, painelCaptura, painelJogo, painelPDI } from './ui.js'
-import { PDI_PADRAO } from './vision/hsv.js'
+import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
 const app = document.querySelector('#app')
@@ -81,6 +81,18 @@ let rastreador = null
 let resultado = null
 
 painelPDI(painel, pdi, { restaurar: () => Object.assign(pdi, PDI_PADRAO) })
+
+// Calibração: clicar no objeto na imagem da câmera ajusta a faixa HSV para a
+// cor dele (média 5×5 em volta do clique, no HSV do último quadro processado).
+canvasCamera.addEventListener('pointerdown', (e) => {
+  if (!rastreador || !resultado) return
+  const r = canvasCamera.getBoundingClientRect()
+  const x = ((e.clientX - r.left) / r.width) * canvasCamera.width
+  const y = ((e.clientY - r.top) / r.height) * canvasCamera.height
+  const amostra = rastreador.amostrarHSV(x, y)
+  Object.assign(pdi, calibrarPorAmostra(amostra))
+  elStatusCaptura.textContent = `Cor calibrada: H ${amostra.h}, S ${amostra.s}, V ${amostra.v}.`
+})
 
 elStatusVisao.textContent = 'Carregando OpenCV.js…'
 carregarOpenCV()

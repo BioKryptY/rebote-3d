@@ -96,6 +96,14 @@ body {
   background: #000;
 }
 
+.painel-visao canvas.calibravel {
+  cursor: crosshair;
+}
+
+.painel-visao figcaption strong {
+  color: var(--texto);
+}
+
 .painel-visao figcaption {
   margin-top: 2px;
   color: var(--texto-suave);
