@@ -8,19 +8,25 @@
 // Gestão de memória: toda cv.Mat usada por quadro é criada uma vez no
 // construtor e reaproveitada; liberar() chama delete() em todas. Nada é
 // alocado no heap do OpenCV dentro do loop, então a memória não cresce.
+//
+// Carregamento: este módulo inteiro é importado com import() dinâmico pelo
+// main.js, então o OpenCV.js (~15 MB) vai para um arquivo separado e a cena
+// aparece antes dele terminar de baixar. O pacote em si é importado de forma
+// estática aqui dentro de propósito: ele exporta uma Promise, e um import()
+// dinâmico direto do pacote quebra no build de produção (o objeto de
+// compatibilidade CommonJS herda de Promise e o navegador tenta tratá-lo como
+// uma promessa de verdade).
+import cvModulo from '@techstark/opencv-js'
 import { ALTURA_PROC, LARGURA_PROC } from '../capture.js'
 import { faixasDeMatiz, kernelImpar, mediaHSV, H_MAX } from './hsv.js'
 
 /**
- * O OpenCV.js tem ~10 MB: o import dinâmico faz o Vite gerar um arquivo
- * separado e a página aparece antes dele terminar de baixar.
  * Só se pode chamar o OpenCV depois que o runtime WebAssembly inicializa.
- * Devolve { cv } (e não cv direto) porque o objeto do Emscripten pode ter um
- * método then, e um await nele ficaria esperando para sempre.
+ * Devolve { cv } (e não cv direto) para o objeto do OpenCV nunca ser o valor
+ * de resolução de uma promessa.
  */
 export async function carregarOpenCV() {
-  const modulo = await import('@techstark/opencv-js')
-  let cv = modulo.default ?? modulo
+  let cv = cvModulo
   if (cv instanceof Promise) {
     cv = await cv
   } else if (!cv.Mat) {

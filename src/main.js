@@ -18,7 +18,6 @@ import { concordanciaDasMascaras, criarFiltroHSVNaGPU, medirFiltroNaGPU } from '
 import { criarPainel, criarStats, painelCaptura, painelCena, painelComparacao, painelJogo, painelPDI } from './ui.js'
 import { retanguloDaZona } from './vision/gestos.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
-import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
 const app = document.querySelector('#app')
 const elMensagem = document.querySelector('#mensagem')
@@ -115,8 +114,9 @@ canvasCamera.addEventListener('pointerdown', (e) => {
 })
 
 elStatusVisao.textContent = 'Carregando OpenCV.js…'
-carregarOpenCV()
-  .then(({ cv }) => {
+import('./vision/opencv.js')
+  .then(async ({ carregarOpenCV, RastreadorDeCor }) => {
+    const { cv } = await carregarOpenCV()
     rastreador = new RastreadorDeCor(cv)
     elStatusVisao.textContent = 'OpenCV.js pronto.'
   })
