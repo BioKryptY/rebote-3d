@@ -85,6 +85,28 @@ export class ClassificadorDeGestos {
     this.knn?.clearAllClasses()
   }
 
+  /**
+   * Cópia dos exemplos gravados (embeddings já normalizadas pelo KNN).
+   * @returns {Record<string, {linhas: number, valores: Float32Array}>}
+   */
+  exemplos() {
+    const conjunto = this.knn.getClassifierDataset()
+    return Object.fromEntries(
+      Object.entries(conjunto).map(([gesto, t]) => [gesto, { linhas: t.shape[0], valores: t.dataSync() }]),
+    )
+  }
+
+  /** Substitui os exemplos atuais pelos informados (já validados). */
+  carregarExemplos(classes) {
+    // clearAllClasses libera os tensores antigos; o setClassifierDataset não.
+    this.knn.clearAllClasses()
+    const conjunto = {}
+    for (const [gesto, { linhas, valores }] of Object.entries(classes)) {
+      conjunto[gesto] = tf.tensor2d(valores, [linhas, valores.length / linhas])
+    }
+    this.knn.setClassifierDataset(conjunto)
+  }
+
   /** Tensores vivos na memória do TensorFlow.js (para conferir vazamento). */
   tensores() {
     return tf.memory().numTensors

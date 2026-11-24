@@ -9,6 +9,7 @@ import { criarObjetos } from './scene/objects.js'
 import { criarPainel, criarStats, painelCaptura, painelCena, painelGestos, painelJogo, painelPDI } from './ui.js'
 import { ConfirmadorDeGesto, GESTOS, NOMES_GESTOS, retanguloDaZona, ZONAS } from './vision/gestos.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
+import { desserializar, serializar } from './vision/persistencia.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
 const app = document.querySelector('#app')
@@ -22,6 +23,7 @@ const canvasMascara = document.querySelector('#canvas-mascara')
 const canvasGesto = document.querySelector('#canvas-gesto')
 const ctxCamera = canvasCamera.getContext('2d')
 const inputVideo = document.querySelector('#arquivo-video')
+const inputGestos = document.querySelector('#arquivo-gestos')
 
 const cena = criarCena(app)
 const objetos = criarObjetos(cena.scene)
@@ -196,6 +198,70 @@ function atualizarContagem() {
   infoGestos.exemplos = GESTOS.map((g) => `${NOMES_GESTOS[g]} ${c[g]}`).join(' · ')
 }
 
+// Os exemplos ficam salvos no navegador (localStorage): recarregar a página
+// não obriga a treinar de novo. Exportar/importar leva o treino para outro
+// computador. localStorage pode estar bloqueado (aba anônima, política do
+// navegador), por isso tudo fica em try/catch e o jogo funciona sem ele.
+const CHAVE_EXEMPLOS = 'rebote3d.gestos.v1'
+
+function exemplosEmJSON() {
+  return serializar(classificador.exemplos(), opcoesGestos)
+}
+
+function aplicarExemplos(dados) {
+  classificador.carregarExemplos(dados.classes)
+  opcoesGestos.zona = dados.zona
+  opcoesGestos.apagarObjeto = dados.apagarObjeto
+  predicao = null
+  atualizarContagem()
+}
+
+function salvarNoNavegador() {
+  try {
+    localStorage.setItem(CHAVE_EXEMPLOS, JSON.stringify(exemplosEmJSON()))
+  } catch {
+    mostrarAviso('Não deu para salvar os exemplos neste navegador')
+  }
+}
+
+function carregarDoNavegador() {
+  try {
+    const texto = localStorage.getItem(CHAVE_EXEMPLOS)
+    if (!texto) return false
+    aplicarExemplos(desserializar(JSON.parse(texto)))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function exportarExemplos() {
+  if (!classificador?.treinado) {
+    mostrarAviso('Grave os gestos antes de exportar')
+    return
+  }
+  const blob = new Blob([JSON.stringify(exemplosEmJSON())], { type: 'application/json' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'rebote3d-gestos.json'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+}
+
+inputGestos.addEventListener('change', async () => {
+  const arquivo = inputGestos.files?.[0]
+  inputGestos.value = ''
+  if (!arquivo || !classificador) return
+  try {
+    if (arquivo.size > 20 * 1024 * 1024) throw new Error('arquivo grande demais')
+    aplicarExemplos(desserializar(JSON.parse(await arquivo.text())))
+    salvarNoNavegador()
+    mostrarAviso('Exemplos importados')
+  } catch (erro) {
+    mostrarAviso(`Não foi possível importar: ${erro.message}`, 4000)
+  }
+})
+
 painelGestos(
   painel,
   infoGestos,
@@ -206,10 +272,18 @@ painelGestos(
       gravacao = { gesto, comecaEm: performance.now() + ESPERA_ANTES_DE_GRAVAR_MS, restantes: QUADROS_POR_GRAVACAO }
     },
     apagar: () => {
-      classificador?.limpar()
+      if (!classificador) return
+      classificador.limpar()
       predicao = null
-      if (classificador) atualizarContagem()
+      atualizarContagem()
+      try {
+        localStorage.removeItem(CHAVE_EXEMPLOS)
+      } catch {
+        // sem localStorage não há o que apagar
+      }
     },
+    exportar: exportarExemplos,
+    importar: () => inputGestos.click(),
   },
   GESTOS,
   NOMES_GESTOS,
@@ -223,8 +297,11 @@ import('./vision/model.js')
     const c = new ClassificadorDeGestos()
     await c.carregar(import.meta.env.BASE_URL)
     classificador = c
+    const recuperou = carregarDoNavegador()
     atualizarContagem()
-    elStatusIA.textContent = `MobileNet pronta (backend ${c.backend}). Grave os gestos no painel.`
+    elStatusIA.textContent = recuperou
+      ? `MobileNet pronta (backend ${c.backend}). Exemplos recuperados do navegador.`
+      : `MobileNet pronta (backend ${c.backend}). Grave os gestos no painel.`
   })
   .catch((erro) => {
     elStatusIA.textContent = `Falha ao carregar o TensorFlow.js (${erro.message}).`
@@ -240,6 +317,7 @@ function processarGestos(quadroNovo, agora) {
     if (gravacao.restantes === 0) {
       gravacao = null
       atualizarContagem()
+      salvarNoNavegador()
     }
     return
   }
@@ -269,11 +347,11 @@ function executarComando(gesto) {
 }
 
 let temporizadorAviso = 0
-function mostrarAviso(texto) {
+function mostrarAviso(texto, duracaoMs = 1200) {
   elAviso.textContent = texto
   elAviso.hidden = false
   clearTimeout(temporizadorAviso)
-  temporizadorAviso = setTimeout(() => (elAviso.hidden = true), 1200)
+  temporizadorAviso = setTimeout(() => (elAviso.hidden = true), duracaoMs)
 }
 
 let proximaAtualizacaoIA = 0

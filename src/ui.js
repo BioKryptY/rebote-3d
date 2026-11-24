@@ -73,15 +73,15 @@ export function painelPDI(gui, pdi, acoes) {
  * @param {{exemplos: string}} info texto atualizado com a contagem de exemplos
  * @param {{inferirACada: number, k: number, zona: string, apagarObjeto: boolean,
  *   confiancaMinima: number, confirmacoes: number}} opcoes
- * @param {{gravar: (gesto: string) => void, apagar: Function}} acoes
+ * @param {{gravar: (gesto: string) => void, apagar: Function, exportar: Function, importar: Function}} acoes
  * @param {string[]} gestos
  * @param {Record<string, string>} nomes
  * @param {Record<string, string>} zonas
  */
 export function painelGestos(gui, info, opcoes, acoes, gestos, nomes, zonas) {
   const pasta = gui.addFolder('Gestos (TensorFlow.js)')
-  pasta.add(opcoes, 'zona', zonas).name('Zona do gesto (regrave ao trocar)')
-  pasta.add(opcoes, 'apagarObjeto').name('Apagar o objeto colorido da zona')
+  pasta.add(opcoes, 'zona', zonas).name('Zona do gesto (regrave ao trocar)').listen()
+  pasta.add(opcoes, 'apagarObjeto').name('Apagar o objeto colorido da zona').listen()
   pasta.add(info, 'exemplos').name('Exemplos gravados').disable().listen()
   const botoes = {}
   for (const g of gestos) {
@@ -89,6 +89,8 @@ export function painelGestos(gui, info, opcoes, acoes, gestos, nomes, zonas) {
     pasta.add(botoes, g).name(`Gravar "${nomes[g]}"`)
   }
   pasta.add(acoes, 'apagar').name('Apagar todos os exemplos')
+  pasta.add(acoes, 'exportar').name('Exportar exemplos (.json)')
+  pasta.add(acoes, 'importar').name('Importar exemplos (.json)…')
   pasta.add(opcoes, 'confiancaMinima', 0.5, 1, 0.05).name('Confiança mínima')
   pasta.add(opcoes, 'confirmacoes', 1, 8, 1).name('Classificações seguidas p/ confirmar')
   pasta.add(opcoes, 'k', 1, 15, 1).name('k (vizinhos que votam)')
