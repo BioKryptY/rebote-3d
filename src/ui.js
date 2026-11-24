@@ -32,6 +32,42 @@ export function painelCaptura(gui, estado, acoes) {
 }
 
 /**
+ * Parâmetros de cada etapa do processamento de imagem (OpenCV.js).
+ * @param {GUI} gui
+ * @param {typeof import('./vision/hsv.js').PDI_PADRAO} pdi objeto lido a cada quadro
+ * @param {{restaurar: Function}} acoes
+ */
+export function painelPDI(gui, pdi, acoes) {
+  const pasta = gui.addFolder('Processamento de imagem (OpenCV.js)')
+
+  const suav = pasta.addFolder('1. Suavização')
+  suav
+    .add(pdi, 'suavizacao', { Nenhuma: 'nenhuma', Gaussiana: 'gaussiano', Mediana: 'mediana' })
+    .name('Filtro')
+    .listen()
+  suav.add(pdi, 'kernelSuavizacao', 1, 15, 2).name('Tamanho do kernel').listen()
+
+  const cor = pasta.addFolder('2. Espaço de cor HSV e limiarização')
+  cor.add(pdi, 'equalizar').name('Equalizar histograma de V').listen()
+  cor.add(pdi, 'hMin', 0, 179, 1).name('H mínimo').listen()
+  cor.add(pdi, 'hMax', 0, 179, 1).name('H máximo').listen()
+  cor.add(pdi, 'sMin', 0, 255, 1).name('S mínimo').listen()
+  cor.add(pdi, 'sMax', 0, 255, 1).name('S máximo').listen()
+  cor.add(pdi, 'vMin', 0, 255, 1).name('V mínimo').listen()
+  cor.add(pdi, 'vMax', 0, 255, 1).name('V máximo').listen()
+
+  const morf = pasta.addFolder('3. Morfologia')
+  morf.add(pdi, 'abertura', 1, 15, 2).name('Abertura (1 = desligada)').listen()
+  morf.add(pdi, 'fechamento', 1, 15, 2).name('Fechamento (1 = desligado)').listen()
+
+  const cont = pasta.addFolder('4. Contornos')
+  cont.add(pdi, 'areaMinima', 0, 3000, 10).name('Área mínima (px)').listen()
+
+  pasta.add(acoes, 'restaurar').name('Restaurar padrão (objeto verde)')
+  return pasta
+}
+
+/**
  * @param {GUI} gui
  * @param {{modo: string, sensibilidade: number, suavizacao: number}} controle
  * @param {{reiniciar: Function, recentralizarCamera: Function}} acoes

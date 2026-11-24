@@ -6,7 +6,7 @@ import { alvoDoObjeto, suavizar } from './game/controle.js'
 import { Captura } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
-import { criarPainel, criarStats, painelCaptura, painelJogo } from './ui.js'
+import { criarPainel, criarStats, painelCaptura, painelJogo, painelPDI } from './ui.js'
 import { PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
@@ -79,6 +79,8 @@ ligarWebcam()
 const pdi = { ...PDI_PADRAO }
 let rastreador = null
 let resultado = null
+
+painelPDI(painel, pdi, { restaurar: () => Object.assign(pdi, PDI_PADRAO) })
 
 elStatusVisao.textContent = 'Carregando OpenCV.js…'
 carregarOpenCV()
