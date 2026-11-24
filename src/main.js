@@ -370,6 +370,8 @@ function processarGestos(quadroNovo, agora) {
       tempoIA = performance.now() - inicio
       executarComando(confirmador.registrar(r, opcoesGestos, performance.now()))
     })
+    // exemplos apagados enquanto a classificação rodava: descarta o resultado
+    .catch(() => (predicao = null))
     .finally(() => (inferindo = false))
 }
 
