@@ -6,11 +6,15 @@ import { Captura } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
 import { criarPainel, criarStats, painelCaptura } from './ui.js'
+import { PDI_PADRAO } from './vision/hsv.js'
+import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
 const app = document.querySelector('#app')
 const elMensagem = document.querySelector('#mensagem')
+const elStatusCaptura = document.querySelector('#status-captura')
 const elStatusVisao = document.querySelector('#status-visao')
 const canvasCamera = document.querySelector('#canvas-camera')
+const canvasMascara = document.querySelector('#canvas-mascara')
 const ctxCamera = canvasCamera.getContext('2d')
 const inputVideo = document.querySelector('#arquivo-video')
 
@@ -25,15 +29,15 @@ const captura = new Captura(document.querySelector('#video'))
 const estadoCaptura = { fonte: 'webcam', espelhar: true }
 
 async function ligarWebcam() {
-  elStatusVisao.textContent = 'Pedindo permissão para usar a câmera…'
+  elStatusCaptura.textContent = 'Pedindo permissão para usar a câmera…'
   try {
     await captura.iniciarWebcam()
     estadoCaptura.fonte = 'webcam'
     estadoCaptura.espelhar = captura.espelhar
-    elStatusVisao.textContent = 'Câmera ligada.'
+    elStatusCaptura.textContent = 'Câmera ligada.'
   } catch (erro) {
     estadoCaptura.fonte = 'nenhuma'
-    elStatusVisao.textContent =
+    elStatusCaptura.textContent =
       `Câmera indisponível (${erro.message || erro.name}).\n` +
       'Abra um arquivo de vídeo no painel ou jogue com o mouse.'
   }
@@ -50,9 +54,9 @@ inputVideo.addEventListener('change', async () => {
     await captura.abrirArquivo(arquivo)
     estadoCaptura.fonte = 'arquivo'
     estadoCaptura.espelhar = captura.espelhar
-    elStatusVisao.textContent = `Vídeo: ${arquivo.name}`
+    elStatusCaptura.textContent = `Vídeo: ${arquivo.name}`
   } catch (erro) {
-    elStatusVisao.textContent = `Não foi possível abrir o vídeo (${erro.message}).`
+    elStatusCaptura.textContent = `Não foi possível abrir o vídeo (${erro.message}).`
   }
 })
 
@@ -63,6 +67,37 @@ painelCaptura(painel, estadoCaptura, {
 })
 
 ligarWebcam()
+
+// ---- processamento de imagem (OpenCV.js) ----
+const pdi = { ...PDI_PADRAO }
+let rastreador = null
+let resultado = null
+
+elStatusVisao.textContent = 'Carregando OpenCV.js…'
+carregarOpenCV()
+  .then(({ cv }) => {
+    rastreador = new RastreadorDeCor(cv)
+    elStatusVisao.textContent = 'OpenCV.js pronto.'
+  })
+  .catch((erro) => {
+    elStatusVisao.textContent = `Falha ao carregar o OpenCV.js (${erro.message}).`
+  })
+
+// libera as matrizes do OpenCV ao sair da página
+window.addEventListener('pagehide', () => rastreador?.liberar())
+
+let proximaAtualizacaoStatus = 0
+function atualizarStatusVisao(agora) {
+  if (agora < proximaAtualizacaoStatus || !resultado) return
+  proximaAtualizacaoStatus = agora + 250
+  const r = resultado
+  elStatusVisao.textContent =
+    `OpenCV: ${r.tempoMs.toFixed(1)} ms por quadro
+` +
+    (r.encontrado
+      ? `Objeto em (${r.x.toFixed(0)}, ${r.y.toFixed(0)}), área ${r.area.toFixed(0)} px`
+      : `Objeto não encontrado (${r.contornos} contornos)`)
+}
 
 // ---- controle pelo mouse: o raio da câmera até o plano da raquete ----
 const raycaster = new THREE.Raycaster()
@@ -112,7 +147,15 @@ function quadro(timestamp) {
   const dt = relogio.getDelta()
   const tempo = relogio.getElapsed()
 
-  if (captura.capturar()) ctxCamera.drawImage(captura.canvas, 0, 0)
+  const imagem = captura.capturar()
+  if (imagem && rastreador) {
+    resultado = rastreador.processar(imagem, pdi)
+    rastreador.desenharVista(canvasCamera)
+    rastreador.desenharMascara(canvasMascara)
+  } else if (imagem) {
+    ctxCamera.drawImage(captura.canvas, 0, 0)
+  }
+  atualizarStatusVisao(timestamp)
 
   jogo.atualizar(dt, alvoMouse)
   objetos.aplicarEventos(jogo.consumirEventos())
@@ -130,4 +173,4 @@ function quadro(timestamp) {
 cena.renderer.setAnimationLoop(quadro)
 
 // usado nos testes manuais pelo console do navegador
-window.rebote = { jogo, cena, captura, ARENA }
+window.rebote = { jogo, cena, captura, pdi, ARENA, get resultado() { return resultado } }

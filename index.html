@@ -15,9 +15,14 @@
       <aside id="visao" class="painel-visao">
         <figure>
           <canvas id="canvas-camera" width="320" height="240"></canvas>
-          <figcaption>Câmera</figcaption>
+          <figcaption>Câmera com o contorno e o centróide do objeto</figcaption>
         </figure>
-        <p id="status-visao" class="status">Aguardando a câmera…</p>
+        <figure>
+          <canvas id="canvas-mascara" width="320" height="240"></canvas>
+          <figcaption>Máscara HSV depois da abertura e do fechamento</figcaption>
+        </figure>
+        <p id="status-captura" class="status">Aguardando a câmera…</p>
+        <p id="status-visao" class="status"></p>
       </aside>
     </div>
 
