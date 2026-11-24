@@ -212,6 +212,31 @@ export class RastreadorDeCor {
     return mediaHSV(amostras)
   }
 
+  /**
+   * Mede o tempo médio, na CPU, das mesmas etapas que o shader faz na GPU:
+   * conversão RGB→HSV e limiarização (sem suavização nem morfologia), sobre
+   * o último quadro recebido. Devolve também a máscara para comparar.
+   */
+  medirLimiarizacaoCPU(repeticoes, p) {
+    const cv = this.cv
+    const faixas = faixasDeMatiz(p.hMin, p.hMax)
+    this.#atualizarLimites(faixas, p)
+    cv.cvtColor(this.rgba, this.rgb, cv.COLOR_RGBA2RGB)
+    const limiarizar = () => {
+      cv.cvtColor(this.rgb, this.hsv, cv.COLOR_RGB2HSV)
+      cv.inRange(this.hsv, this.limites[0], this.limites[1], this.mascara)
+      if (faixas.length === 2) {
+        cv.inRange(this.hsv, this.limites[2], this.limites[3], this.mascaraAux)
+        cv.bitwise_or(this.mascara, this.mascaraAux, this.mascara)
+      }
+    }
+    limiarizar() // aquecimento
+    const inicio = performance.now()
+    for (let i = 0; i < repeticoes; i++) limiarizar()
+    const tempo = (performance.now() - inicio) / repeticoes
+    return { tempo, mascara: this.mascara.data.slice() }
+  }
+
   liberar() {
     const mats = [
       this.rgba, this.rgb, this.suave, this.hsv, this.mascara, this.mascaraAux,

@@ -6,7 +6,17 @@ import { alvoDoObjeto, suavizar } from './game/controle.js'
 import { ALTURA_PROC, Captura, LARGURA_PROC } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
-import { criarPainel, criarStats, painelCaptura, painelCena, painelGestos, painelJogo, painelPDI } from './ui.js'
+import { concordanciaDasMascaras, criarFiltroHSVNaGPU, medirFiltroNaGPU } from './scene/gpuFiltro.js'
+import {
+  criarPainel,
+  criarStats,
+  painelCaptura,
+  painelCena,
+  painelComparacao,
+  painelGestos,
+  painelJogo,
+  painelPDI,
+} from './ui.js'
 import { ConfirmadorDeGesto, GESTOS, NOMES_GESTOS, retanguloDaZona, ZONAS } from './vision/gestos.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
 import { desserializar, serializar } from './vision/persistencia.js'
@@ -162,8 +172,12 @@ function texturaDoCanvas(canvas) {
 const texturas = { camera: texturaDoCanvas(canvasCamera), mascara: texturaDoCanvas(canvasMascara) }
 const opcoesCena = { telao: 'camera' }
 
+// Bônus: o mesmo filtro HSV feito por um shader na GPU.
+const filtroGPU = criarFiltroHSVNaGPU(captura.canvas)
+
 function trocarTelao(modo) {
-  objetos.mostrarNoTelao(texturas[modo] ?? null)
+  if (modo === 'gpu') objetos.mostrarNoTelao(null, filtroGPU.material)
+  else objetos.mostrarNoTelao(texturas[modo] ?? null)
 }
 trocarTelao(opcoesCena.telao)
 
@@ -171,6 +185,27 @@ painelCena(painel, opcoesCena, {
   trocarTelao,
   recentralizarCamera: () => cena.recentralizarCamera(),
 })
+
+// ---- comparação de desempenho: filtro HSV na CPU (OpenCV.js) × GPU (shader) ----
+const resultadosComparacao = { cpu: '—', gpuComLeitura: '—', gpuShader: '—', concordancia: '—' }
+const REPETICOES = 100
+
+function compararCpuGpu() {
+  if (!rastreador || !resultado) {
+    mostrarAviso('Espere a câmera e o OpenCV.js ficarem prontos')
+    return
+  }
+  filtroGPU.atualizarParametros(pdi)
+  const cpu = rastreador.medirLimiarizacaoCPU(REPETICOES, pdi)
+  const gpu = medirFiltroNaGPU(cena.renderer, filtroGPU, REPETICOES)
+  const ms = (t) => `${t.toFixed(2)} ms`
+  resultadosComparacao.cpu = ms(cpu.tempo)
+  resultadosComparacao.gpuComLeitura = ms(gpu.comLeitura)
+  resultadosComparacao.gpuShader = ms(gpu.soShader)
+  resultadosComparacao.concordancia = `${(concordanciaDasMascaras(cpu.mascara, gpu.pixels) * 100).toFixed(2)}% dos pixels`
+}
+
+painelComparacao(painel, resultadosComparacao, { comparar: compararCpuGpu })
 
 // ---- gestos (TensorFlow.js: MobileNet + KNN treinado no navegador) ----
 const QUADROS_POR_GRAVACAO = 30
@@ -422,6 +457,10 @@ function quadro(timestamp) {
     rastreador.desenharMascara(canvasMascara)
     texturas.camera.needsUpdate = true
     texturas.mascara.needsUpdate = true
+    if (opcoesCena.telao === 'gpu') {
+      filtroGPU.atualizarParametros(pdi)
+      filtroGPU.textura.needsUpdate = true
+    }
   } else if (imagem) {
     ctxCamera.drawImage(captura.canvas, 0, 0)
     texturas.camera.needsUpdate = true

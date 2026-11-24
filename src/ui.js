@@ -130,10 +130,27 @@ export function painelCena(gui, opcoes, acoes) {
     .add(opcoes, 'telao', {
       'Câmera com contorno': 'camera',
       'Máscara do OpenCV': 'mascara',
+      'Máscara feita na GPU (shader)': 'gpu',
       Nada: 'nada',
     })
     .name('Telão do fundo mostra')
     .onChange(acoes.trocarTelao)
   pasta.add(acoes, 'recentralizarCamera').name('Recentralizar câmera 3D')
+  return pasta
+}
+
+/**
+ * Comparação do filtro HSV na CPU (OpenCV.js) e na GPU (shader).
+ * @param {GUI} gui
+ * @param {{cpu: string, gpuComLeitura: string, gpuShader: string, concordancia: string}} resultados
+ * @param {{comparar: Function}} acoes
+ */
+export function painelComparacao(gui, resultados, acoes) {
+  const pasta = gui.addFolder('Comparação CPU × GPU')
+  pasta.add(acoes, 'comparar').name('Medir (100 repetições)')
+  pasta.add(resultados, 'cpu').name('CPU: OpenCV.js').disable().listen()
+  pasta.add(resultados, 'gpuComLeitura').name('GPU: com envio e leitura').disable().listen()
+  pasta.add(resultados, 'gpuShader').name('GPU: só o shader').disable().listen()
+  pasta.add(resultados, 'concordancia').name('Máscaras iguais em').disable().listen()
   return pasta
 }
