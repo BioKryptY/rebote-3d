@@ -7,12 +7,13 @@ import { ALTURA_PROC, Captura, LARGURA_PROC } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
 import { criarPainel, criarStats, painelCaptura, painelCena, painelGestos, painelJogo, painelPDI } from './ui.js'
-import { GESTOS, NOMES_GESTOS, retanguloDaZona, ZONAS } from './vision/gestos.js'
+import { ConfirmadorDeGesto, GESTOS, NOMES_GESTOS, retanguloDaZona, ZONAS } from './vision/gestos.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
 const app = document.querySelector('#app')
 const elMensagem = document.querySelector('#mensagem')
+const elAviso = document.querySelector('#aviso')
 const elStatusCaptura = document.querySelector('#status-captura')
 const elStatusVisao = document.querySelector('#status-visao')
 const elStatusIA = document.querySelector('#status-ia')
@@ -172,8 +173,17 @@ painelCena(painel, opcoesCena, {
 // ---- gestos (TensorFlow.js: MobileNet + KNN treinado no navegador) ----
 const QUADROS_POR_GRAVACAO = 30
 const ESPERA_ANTES_DE_GRAVAR_MS = 2000 // tempo para soltar o mouse e fazer o gesto
-const opcoesGestos = { k: 5, inferirACada: 3, zona: 'esquerda', apagarObjeto: true }
+const opcoesGestos = {
+  k: 5,
+  inferirACada: 3,
+  zona: 'esquerda',
+  apagarObjeto: true,
+  confiancaMinima: 0.8,
+  confirmacoes: 3,
+  intervaloMs: 800,
+}
 const infoGestos = { exemplos: 'carregando…' }
+const confirmador = new ConfirmadorDeGesto()
 let classificador = null
 let predicao = null
 let inferindo = false
@@ -245,8 +255,25 @@ function processarGestos(quadroNovo, agora) {
     .then((r) => {
       predicao = r
       tempoIA = performance.now() - inicio
+      executarComando(confirmador.registrar(r, opcoesGestos, performance.now()))
     })
     .finally(() => (inferindo = false))
+}
+
+/** Gesto confirmado → comando do jogo. */
+function executarComando(gesto) {
+  if (gesto === 'sacar') jogo.sacar()
+  else if (gesto === 'pausar') jogo.pausar()
+  else return
+  mostrarAviso(`Gesto ${NOMES_GESTOS[gesto].toUpperCase()} reconhecido`)
+}
+
+let temporizadorAviso = 0
+function mostrarAviso(texto) {
+  elAviso.textContent = texto
+  elAviso.hidden = false
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => (elAviso.hidden = true), 1200)
 }
 
 let proximaAtualizacaoIA = 0
@@ -283,7 +310,9 @@ function textoDoEstado(agora) {
   }
   switch (jogo.estado) {
     case ESTADO.SAQUE:
-      return 'Faça o gesto SACAR (ou aperte Espaço)'
+      return classificador?.treinado
+        ? 'Faça o gesto SACAR (ou aperte Espaço)'
+        : 'Aperte Espaço para sacar — ou grave os gestos no painel'
     case ESTADO.PAUSADO:
       return 'Pausado — gesto SACAR continua'
     case ESTADO.FIM:

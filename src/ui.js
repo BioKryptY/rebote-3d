@@ -71,7 +71,8 @@ export function painelPDI(gui, pdi, acoes) {
  * Treino e uso do classificador de gestos (TensorFlow.js).
  * @param {GUI} gui
  * @param {{exemplos: string}} info texto atualizado com a contagem de exemplos
- * @param {{inferirACada: number, k: number, zona: string, apagarObjeto: boolean}} opcoes
+ * @param {{inferirACada: number, k: number, zona: string, apagarObjeto: boolean,
+ *   confiancaMinima: number, confirmacoes: number}} opcoes
  * @param {{gravar: (gesto: string) => void, apagar: Function}} acoes
  * @param {string[]} gestos
  * @param {Record<string, string>} nomes
@@ -88,6 +89,8 @@ export function painelGestos(gui, info, opcoes, acoes, gestos, nomes, zonas) {
     pasta.add(botoes, g).name(`Gravar "${nomes[g]}"`)
   }
   pasta.add(acoes, 'apagar').name('Apagar todos os exemplos')
+  pasta.add(opcoes, 'confiancaMinima', 0.5, 1, 0.05).name('Confiança mínima')
+  pasta.add(opcoes, 'confirmacoes', 1, 8, 1).name('Classificações seguidas p/ confirmar')
   pasta.add(opcoes, 'k', 1, 15, 1).name('k (vizinhos que votam)')
   pasta.add(opcoes, 'inferirACada', 1, 6, 1).name('Classificar a cada N quadros')
   return pasta

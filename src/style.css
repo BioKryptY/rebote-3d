@@ -56,8 +56,24 @@ body {
   white-space: nowrap;
 }
 
-.mensagem[hidden] {
+.mensagem[hidden],
+.aviso[hidden] {
   display: none;
+}
+
+/* confirmação rápida de que um gesto virou comando */
+.aviso {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--destaque);
+  color: #04141a;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .stats {
