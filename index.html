@@ -8,9 +8,23 @@
   </head>
   <body>
     <div id="app"></div>
+
     <div id="hud">
       <p id="mensagem" class="mensagem" hidden></p>
+
+      <aside id="visao" class="painel-visao">
+        <figure>
+          <canvas id="canvas-camera" width="320" height="240"></canvas>
+          <figcaption>Câmera</figcaption>
+        </figure>
+        <p id="status-visao" class="status">Aguardando a câmera…</p>
+      </aside>
     </div>
+
+    <!-- fonte de imagem: não aparece na tela, é lida pelo canvas de processamento -->
+    <video id="video" class="fora-da-tela" playsinline muted></video>
+    <input id="arquivo-video" type="file" accept="video/*" hidden />
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

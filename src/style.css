@@ -65,3 +65,54 @@ body {
   top: 8px !important;
   left: 8px !important;
 }
+
+/* ---- painel com o que a visão computacional enxerga ---- */
+.painel-visao {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 248px;
+  padding: 8px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--painel);
+  pointer-events: auto;
+}
+
+.painel-visao figure {
+  margin: 0;
+}
+
+.painel-visao canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  background: #000;
+}
+
+.painel-visao figcaption {
+  margin-top: 2px;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}
+
+.status {
+  margin: 0;
+  color: var(--texto-suave);
+  font: 0.75rem/1.4 var(--mono);
+  white-space: pre-line;
+}
+
+/* o vídeo precisa estar "visível" para o navegador decodificar os quadros */
+.fora-da-tela {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 320px;
+  height: 240px;
+  pointer-events: none;
+}
