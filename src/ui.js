@@ -30,3 +30,21 @@ export function painelCaptura(gui, estado, acoes) {
   pasta.add(acoes, 'abrirVideo').name('Abrir arquivo de vídeo…')
   return pasta
 }
+
+/**
+ * @param {GUI} gui
+ * @param {{modo: string, sensibilidade: number, suavizacao: number}} controle
+ * @param {{reiniciar: Function, recentralizarCamera: Function}} acoes
+ */
+export function painelJogo(gui, controle, acoes) {
+  const pasta = gui.addFolder('Jogo')
+  pasta
+    .add(controle, 'modo', { 'Objeto colorido na câmera': 'objeto', Mouse: 'mouse' })
+    .name('Raquete segue')
+    .listen()
+  pasta.add(controle, 'sensibilidade', 0.8, 2.5, 0.05).name('Sensibilidade')
+  pasta.add(controle, 'suavizacao', 0.05, 1, 0.05).name('Suavização temporal (1 = nenhuma)')
+  pasta.add(acoes, 'reiniciar').name('Reiniciar partida (R)')
+  pasta.add(acoes, 'recentralizarCamera').name('Recentralizar câmera 3D')
+  return pasta
+}

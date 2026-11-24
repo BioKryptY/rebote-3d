@@ -2,10 +2,11 @@
 import './style.css'
 import * as THREE from 'three'
 import { ARENA, ESTADO, Jogo, Z_RAQUETE_JOGADOR } from './game/game.js'
+import { alvoDoObjeto, suavizar } from './game/controle.js'
 import { Captura } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
-import { criarPainel, criarStats, painelCaptura } from './ui.js'
+import { criarPainel, criarStats, painelCaptura, painelJogo } from './ui.js'
 import { PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
@@ -24,6 +25,9 @@ const jogo = new Jogo()
 const stats = criarStats()
 const painel = criarPainel()
 
+// como a raquete do jogador é controlada
+const controle = { modo: 'objeto', sensibilidade: 1.3, suavizacao: 0.35 }
+
 // ---- captura (webcam ou arquivo de vídeo) ----
 const captura = new Captura(document.querySelector('#video'))
 const estadoCaptura = { fonte: 'webcam', espelhar: true }
@@ -34,12 +38,14 @@ async function ligarWebcam() {
     await captura.iniciarWebcam()
     estadoCaptura.fonte = 'webcam'
     estadoCaptura.espelhar = captura.espelhar
+    controle.modo = 'objeto'
     elStatusCaptura.textContent = 'Câmera ligada.'
   } catch (erro) {
     estadoCaptura.fonte = 'nenhuma'
+    controle.modo = 'mouse'
     elStatusCaptura.textContent =
       `Câmera indisponível (${erro.message || erro.name}).\n` +
-      'Abra um arquivo de vídeo no painel ou jogue com o mouse.'
+      'A raquete passou a seguir o mouse. Abra um vídeo no painel para usar a visão.'
   }
 }
 
@@ -54,6 +60,7 @@ inputVideo.addEventListener('change', async () => {
     await captura.abrirArquivo(arquivo)
     estadoCaptura.fonte = 'arquivo'
     estadoCaptura.espelhar = captura.espelhar
+    controle.modo = 'objeto'
     elStatusCaptura.textContent = `Vídeo: ${arquivo.name}`
   } catch (erro) {
     elStatusCaptura.textContent = `Não foi possível abrir o vídeo (${erro.message}).`
@@ -125,6 +132,22 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyR') jogo.reiniciar()
 })
 
+painelJogo(painel, controle, {
+  reiniciar: () => jogo.reiniciar(),
+  recentralizarCamera: () => cena.recentralizarCamera(),
+})
+
+// ---- integração: centróide do objeto → posição da raquete ----
+let alvoBruto = null // último centróide convertido para coordenadas do túnel
+let alvoObjeto = null // o mesmo, suavizado no tempo
+
+function alvoDaRaquete(dt) {
+  if (controle.modo === 'mouse') return alvoMouse
+  if (!alvoBruto) return null
+  alvoObjeto = suavizar(alvoObjeto, alvoBruto, controle.suavizacao, dt)
+  return alvoObjeto
+}
+
 function textoDoEstado() {
   switch (jogo.estado) {
     case ESTADO.SAQUE:
@@ -150,6 +173,8 @@ function quadro(timestamp) {
   const imagem = captura.capturar()
   if (imagem && rastreador) {
     resultado = rastreador.processar(imagem, pdi)
+    // objeto perdido: a raquete fica onde estava
+    if (resultado.encontrado) alvoBruto = alvoDoObjeto(resultado.u, resultado.v, controle.sensibilidade)
     rastreador.desenharVista(canvasCamera)
     rastreador.desenharMascara(canvasMascara)
   } else if (imagem) {
@@ -157,7 +182,7 @@ function quadro(timestamp) {
   }
   atualizarStatusVisao(timestamp)
 
-  jogo.atualizar(dt, alvoMouse)
+  jogo.atualizar(dt, alvoDaRaquete(dt))
   objetos.aplicarEventos(jogo.consumirEventos())
   objetos.sincronizar(jogo, dt, tempo)
 
@@ -173,4 +198,4 @@ function quadro(timestamp) {
 cena.renderer.setAnimationLoop(quadro)
 
 // usado nos testes manuais pelo console do navegador
-window.rebote = { jogo, cena, captura, pdi, ARENA, get resultado() { return resultado } }
+window.rebote = { jogo, cena, captura, pdi, controle, ARENA, get resultado() { return resultado } }
