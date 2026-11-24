@@ -81,6 +81,24 @@ export function painelJogo(gui, controle, acoes) {
   pasta.add(controle, 'sensibilidade', 0.8, 2.5, 0.05).name('Sensibilidade')
   pasta.add(controle, 'suavizacao', 0.05, 1, 0.05).name('Suavização temporal (1 = nenhuma)')
   pasta.add(acoes, 'reiniciar').name('Reiniciar partida (R)')
+  return pasta
+}
+
+/**
+ * @param {GUI} gui
+ * @param {{telao: string}} opcoes
+ * @param {{trocarTelao: Function, recentralizarCamera: Function}} acoes
+ */
+export function painelCena(gui, opcoes, acoes) {
+  const pasta = gui.addFolder('Cena 3D (Three.js)')
+  pasta
+    .add(opcoes, 'telao', {
+      'Câmera com contorno': 'camera',
+      'Máscara do OpenCV': 'mascara',
+      Nada: 'nada',
+    })
+    .name('Telão do fundo mostra')
+    .onChange(acoes.trocarTelao)
   pasta.add(acoes, 'recentralizarCamera').name('Recentralizar câmera 3D')
   return pasta
 }

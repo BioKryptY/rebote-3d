@@ -6,7 +6,7 @@ import { alvoDoObjeto, suavizar } from './game/controle.js'
 import { Captura } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
-import { criarPainel, criarStats, painelCaptura, painelJogo, painelPDI } from './ui.js'
+import { criarPainel, criarStats, painelCaptura, painelCena, painelJogo, painelPDI } from './ui.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
@@ -146,8 +146,24 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyR') jogo.reiniciar()
 })
 
-painelJogo(painel, controle, {
-  reiniciar: () => jogo.reiniciar(),
+painelJogo(painel, controle, { reiniciar: () => jogo.reiniciar() })
+
+// ---- telão no fundo do túnel: texturas dinâmicas com a saída do OpenCV ----
+function texturaDoCanvas(canvas) {
+  const textura = new THREE.CanvasTexture(canvas)
+  textura.colorSpace = THREE.SRGBColorSpace
+  return textura
+}
+const texturas = { camera: texturaDoCanvas(canvasCamera), mascara: texturaDoCanvas(canvasMascara) }
+const opcoesCena = { telao: 'camera' }
+
+function trocarTelao(modo) {
+  objetos.mostrarNoTelao(texturas[modo] ?? null)
+}
+trocarTelao(opcoesCena.telao)
+
+painelCena(painel, opcoesCena, {
+  trocarTelao,
   recentralizarCamera: () => cena.recentralizarCamera(),
 })
 
@@ -191,8 +207,11 @@ function quadro(timestamp) {
     if (resultado.encontrado) alvoBruto = alvoDoObjeto(resultado.u, resultado.v, controle.sensibilidade)
     rastreador.desenharVista(canvasCamera)
     rastreador.desenharMascara(canvasMascara)
+    texturas.camera.needsUpdate = true
+    texturas.mascara.needsUpdate = true
   } else if (imagem) {
     ctxCamera.drawImage(captura.canvas, 0, 0)
+    texturas.camera.needsUpdate = true
   }
   atualizarStatusVisao(timestamp)
 

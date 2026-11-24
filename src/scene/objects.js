@@ -112,12 +112,18 @@ export function criarObjetos(scene) {
   direita.rotation.y = -Math.PI / 2
   direita.position.set(W / 2, 0, zCentro)
 
-  // Parede do fundo: depois recebe a imagem processada da webcam.
   const fundo = new THREE.Mesh(
     new THREE.PlaneGeometry(W, H),
     new THREE.MeshBasicMaterial({ color: 0x0d1430, toneMapped: false }),
   )
   fundo.position.set(0, 0, Z_FUNDO)
+
+  // Telão na parede do fundo: mostra o que a visão computacional está vendo.
+  // Tem a proporção 4:3 da imagem processada, para não distorcer.
+  const materialTelao = new THREE.MeshBasicMaterial({ color: 0x8890a8, toneMapped: false })
+  const telao = new THREE.Mesh(new THREE.PlaneGeometry((H * 4) / 3, H), materialTelao)
+  telao.position.set(0, 0, Z_FUNDO + 0.01)
+  telao.visible = false
 
   // Molduras fixas na boca e no fundo do túnel.
   const molduraBoca = criarRetangulo(COR_JOGADOR, 0.8)
@@ -125,7 +131,28 @@ export function criarObjetos(scene) {
   const molduraFundo = criarRetangulo(COR_CPU, 0.8)
   molduraFundo.position.z = Z_RAQUETE_CPU
 
-  grupo.add(chao, teto, esquerda, direita, fundo, molduraBoca, molduraFundo)
+  grupo.add(chao, teto, esquerda, direita, fundo, telao, molduraBoca, molduraFundo)
+
+  /**
+   * Troca o que aparece no telão do fundo.
+   * @param {THREE.Texture|null} textura null esconde o telão
+   * @param {THREE.Material} [material] material próprio (ex.: shader); se
+   *   omitido usa o material básico com a textura
+   */
+  function mostrarNoTelao(textura, material) {
+    if (!textura && !material) {
+      telao.visible = false
+      return
+    }
+    if (material) {
+      telao.material = material
+    } else {
+      materialTelao.map = textura
+      materialTelao.needsUpdate = true
+      telao.material = materialTelao
+    }
+    telao.visible = true
+  }
 
   // ---- bola ----
   const bola = new THREE.Mesh(
@@ -205,5 +232,5 @@ export function criarObjetos(scene) {
     luzBola.intensity = 5 + pulso * 2
   }
 
-  return { grupo, fundo, bola, raqueteJogador, raqueteCpu, aplicarEventos, sincronizar }
+  return { grupo, telao, bola, raqueteJogador, raqueteCpu, aplicarEventos, sincronizar, mostrarNoTelao }
 }
