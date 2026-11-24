@@ -1,14 +1,26 @@
 {
   "name": "rebote-3d",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Jogo 3D de rebater a bola num túnel, controlado pela webcam: OpenCV.js rastreia um objeto colorido, TensorFlow.js reconhece gestos e Three.js desenha a cena.",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.1"
+  },
+  "dependencies": {
+    "@techstark/opencv-js": "^5.0.0-release.1",
+    "@tensorflow-models/knn-classifier": "^1.2.6",
+    "@tensorflow-models/mobilenet": "^2.1.1",
+    "@tensorflow/tfjs": "^4.22.0",
+    "lil-gui": "^0.21.0",
+    "stats.js": "^0.17.0",
+    "three": "^0.187.0"
   }
 }
