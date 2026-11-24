@@ -3,10 +3,11 @@ import './style.css'
 import * as THREE from 'three'
 import { ARENA, ESTADO, Jogo, Z_RAQUETE_JOGADOR } from './game/game.js'
 import { alvoDoObjeto, suavizar } from './game/controle.js'
-import { Captura } from './capture.js'
+import { ALTURA_PROC, Captura, LARGURA_PROC } from './capture.js'
 import { criarCena } from './scene/scene.js'
 import { criarObjetos } from './scene/objects.js'
-import { criarPainel, criarStats, painelCaptura, painelCena, painelJogo, painelPDI } from './ui.js'
+import { criarPainel, criarStats, painelCaptura, painelCena, painelGestos, painelJogo, painelPDI } from './ui.js'
+import { GESTOS, NOMES_GESTOS, retanguloDaZona, ZONAS } from './vision/gestos.js'
 import { calibrarPorAmostra, PDI_PADRAO } from './vision/hsv.js'
 import { carregarOpenCV, RastreadorDeCor } from './vision/opencv.js'
 
@@ -14,8 +15,10 @@ const app = document.querySelector('#app')
 const elMensagem = document.querySelector('#mensagem')
 const elStatusCaptura = document.querySelector('#status-captura')
 const elStatusVisao = document.querySelector('#status-visao')
+const elStatusIA = document.querySelector('#status-ia')
 const canvasCamera = document.querySelector('#canvas-camera')
 const canvasMascara = document.querySelector('#canvas-mascara')
+const canvasGesto = document.querySelector('#canvas-gesto')
 const ctxCamera = canvasCamera.getContext('2d')
 const inputVideo = document.querySelector('#arquivo-video')
 
@@ -113,8 +116,7 @@ function atualizarStatusVisao(agora) {
   proximaAtualizacaoStatus = agora + 250
   const r = resultado
   elStatusVisao.textContent =
-    `OpenCV: ${r.tempoMs.toFixed(1)} ms por quadro
-` +
+    `OpenCV: ${r.tempoMs.toFixed(1)} ms por quadro\n` +
     (r.encontrado
       ? `Objeto em (${r.x.toFixed(0)}, ${r.y.toFixed(0)}), área ${r.area.toFixed(0)} px`
       : `Objeto não encontrado (${r.contornos} contornos)`)
@@ -167,6 +169,99 @@ painelCena(painel, opcoesCena, {
   recentralizarCamera: () => cena.recentralizarCamera(),
 })
 
+// ---- gestos (TensorFlow.js: MobileNet + KNN treinado no navegador) ----
+const QUADROS_POR_GRAVACAO = 30
+const ESPERA_ANTES_DE_GRAVAR_MS = 2000 // tempo para soltar o mouse e fazer o gesto
+const opcoesGestos = { k: 5, inferirACada: 3, zona: 'esquerda', apagarObjeto: true }
+const infoGestos = { exemplos: 'carregando…' }
+let classificador = null
+let predicao = null
+let inferindo = false
+let quadrosDesdeInferencia = 0
+let tempoIA = 0
+let gravacao = null // { gesto, comecaEm, restantes }
+
+function atualizarContagem() {
+  const c = classificador.contagem()
+  infoGestos.exemplos = GESTOS.map((g) => `${NOMES_GESTOS[g]} ${c[g]}`).join(' · ')
+}
+
+painelGestos(
+  painel,
+  infoGestos,
+  opcoesGestos,
+  {
+    gravar: (gesto) => {
+      if (!classificador) return
+      gravacao = { gesto, comecaEm: performance.now() + ESPERA_ANTES_DE_GRAVAR_MS, restantes: QUADROS_POR_GRAVACAO }
+    },
+    apagar: () => {
+      classificador?.limpar()
+      predicao = null
+      if (classificador) atualizarContagem()
+    },
+  },
+  GESTOS,
+  NOMES_GESTOS,
+  ZONAS,
+)
+
+// O TensorFlow.js também é carregado à parte, para a cena aparecer antes.
+elStatusIA.textContent = 'Carregando TensorFlow.js e MobileNet…'
+import('./vision/model.js')
+  .then(async ({ ClassificadorDeGestos }) => {
+    const c = new ClassificadorDeGestos()
+    await c.carregar(import.meta.env.BASE_URL)
+    classificador = c
+    atualizarContagem()
+    elStatusIA.textContent = `MobileNet pronta (backend ${c.backend}). Grave os gestos no painel.`
+  })
+  .catch((erro) => {
+    elStatusIA.textContent = `Falha ao carregar o TensorFlow.js (${erro.message}).`
+  })
+
+/** Grava exemplos (durante uma gravação) ou classifica o quadro atual. */
+function processarGestos(quadroNovo, agora) {
+  if (!classificador || !quadroNovo || !rastreador) return
+  if (gravacao) {
+    if (agora < gravacao.comecaEm) return
+    classificador.adicionarExemplo(canvasGesto, gravacao.gesto)
+    gravacao.restantes--
+    if (gravacao.restantes === 0) {
+      gravacao = null
+      atualizarContagem()
+    }
+    return
+  }
+  // A inferência é assíncrona e roda só a cada N quadros novos: a renderização
+  // não espera por ela e o FPS do jogo não cai.
+  quadrosDesdeInferencia++
+  if (inferindo || quadrosDesdeInferencia < opcoesGestos.inferirACada || !classificador.treinado) return
+  quadrosDesdeInferencia = 0
+  inferindo = true
+  const inicio = performance.now()
+  classificador
+    .classificar(canvasGesto, opcoesGestos.k)
+    .then((r) => {
+      predicao = r
+      tempoIA = performance.now() - inicio
+    })
+    .finally(() => (inferindo = false))
+}
+
+let proximaAtualizacaoIA = 0
+function atualizarStatusIA(agora) {
+  if (!classificador || agora < proximaAtualizacaoIA) return
+  proximaAtualizacaoIA = agora + 250
+  const tensores = `${classificador.tensores()} tensores na memória`
+  if (!classificador.treinado) {
+    elStatusIA.textContent = `Grave exemplos de pelo menos dois gestos.\n${tensores}`
+    return
+  }
+  const gesto = predicao ? `${NOMES_GESTOS[predicao.gesto]} (${Math.round(predicao.confianca * 100)}%)` : '—'
+  elStatusIA.textContent = `Gesto: ${gesto}\nTensorFlow.js: ${tempoIA.toFixed(0)} ms · ${tensores}`
+}
+
 // ---- integração: centróide do objeto → posição da raquete ----
 let alvoBruto = null // último centróide convertido para coordenadas do túnel
 let alvoObjeto = null // o mesmo, suavizado no tempo
@@ -178,7 +273,14 @@ function alvoDaRaquete(dt) {
   return alvoObjeto
 }
 
-function textoDoEstado() {
+function textoDoEstado(agora) {
+  if (gravacao) {
+    const nome = NOMES_GESTOS[gravacao.gesto].toUpperCase()
+    if (agora < gravacao.comecaEm) {
+      return `Prepare o gesto ${nome}: gravando em ${Math.ceil((gravacao.comecaEm - agora) / 1000)} s`
+    }
+    return `Gravando ${nome}: ${QUADROS_POR_GRAVACAO - gravacao.restantes}/${QUADROS_POR_GRAVACAO} — mexa um pouco a mão`
+  }
   switch (jogo.estado) {
     case ESTADO.SAQUE:
       return 'Faça o gesto SACAR (ou aperte Espaço)'
@@ -205,6 +307,10 @@ function quadro(timestamp) {
     resultado = rastreador.processar(imagem, pdi)
     // objeto perdido: a raquete fica onde estava
     if (resultado.encontrado) alvoBruto = alvoDoObjeto(resultado.u, resultado.v, controle.sensibilidade)
+    // entrada do classificador de gestos: zona da mão livre, sem o objeto
+    const zona = retanguloDaZona(opcoesGestos.zona, LARGURA_PROC, ALTURA_PROC)
+    rastreador.prepararEntradaGesto(canvasGesto, zona, opcoesGestos.apagarObjeto)
+    rastreador.marcarZona(zona)
     rastreador.desenharVista(canvasCamera)
     rastreador.desenharMascara(canvasMascara)
     texturas.camera.needsUpdate = true
@@ -214,12 +320,14 @@ function quadro(timestamp) {
     texturas.camera.needsUpdate = true
   }
   atualizarStatusVisao(timestamp)
+  processarGestos(imagem !== null, timestamp)
+  atualizarStatusIA(timestamp)
 
   jogo.atualizar(dt, alvoDaRaquete(dt))
   objetos.aplicarEventos(jogo.consumirEventos())
   objetos.sincronizar(jogo, dt, tempo)
 
-  const mensagem = textoDoEstado()
+  const mensagem = textoDoEstado(timestamp)
   if (elMensagem.textContent !== mensagem) elMensagem.textContent = mensagem
   elMensagem.hidden = mensagem === ''
 
@@ -231,4 +339,10 @@ function quadro(timestamp) {
 cena.renderer.setAnimationLoop(quadro)
 
 // usado nos testes manuais pelo console do navegador
-window.rebote = { jogo, cena, captura, pdi, controle, ARENA, get resultado() { return resultado } }
+window.rebote = {
+  jogo, cena, captura, pdi, controle, opcoesGestos, ARENA,
+  get resultado() { return resultado },
+  get classificador() { return classificador },
+  get predicao() { return predicao },
+  get gravacao() { return gravacao },
+}

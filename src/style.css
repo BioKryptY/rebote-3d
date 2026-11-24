@@ -96,6 +96,17 @@ body {
   background: #000;
 }
 
+.painel-visao .entrada-gesto {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.painel-visao .entrada-gesto canvas {
+  width: 64px;
+  flex: none;
+}
+
 .painel-visao canvas.calibravel {
   cursor: crosshair;
 }

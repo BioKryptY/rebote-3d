@@ -51,6 +51,8 @@ export class RastreadorDeCor {
     this.aberta = nova(cv.CV_8UC1)
     this.final = nova(cv.CV_8UC1)
     this.vista = nova(cv.CV_8UC3)
+    this.gesto = nova(cv.CV_8UC3)
+    this.mascaraDilatada = nova(cv.CV_8UC1)
     // limites do inRange: [mínimo, máximo] de cada uma das (até) duas faixas
     this.limites = [nova(cv.CV_8UC3), nova(cv.CV_8UC3), nova(cv.CV_8UC3), nova(cv.CV_8UC3)]
     this.assinaturaLimites = ''
@@ -149,6 +151,40 @@ export class RastreadorDeCor {
     return resultado
   }
 
+  /**
+   * Prepara a entrada do classificador de gestos (integração PDI → IA):
+   * recorta a zona do gesto e, dentro dela, pinta de cinza o objeto colorido
+   * usando a máscara do rastreamento (dilatada para cobrir a borda), para a
+   * posição do objeto não confundir o classificador.
+   * @param {HTMLCanvasElement} canvas destino (vira a entrada da MobileNet)
+   * @param {{x:number,y:number,w:number,h:number}} zona
+   * @param {boolean} apagarObjeto
+   */
+  prepararEntradaGesto(canvas, zona, apagarObjeto) {
+    const cv = this.cv
+    this.rgb.copyTo(this.gesto)
+    if (apagarObjeto) {
+      cv.dilate(this.final, this.mascaraDilatada, this.#kernel(15), new cv.Point(-1, -1), 1)
+      this.gesto.setTo(new cv.Scalar(128, 128, 128, 255), this.mascaraDilatada)
+    }
+    const recorte = this.gesto.roi(new cv.Rect(zona.x, zona.y, zona.w, zona.h))
+    cv.imshow(canvas, recorte)
+    recorte.delete()
+  }
+
+  /** Desenha o retângulo da zona do gesto na imagem de visualização. */
+  marcarZona(zona) {
+    const cv = this.cv
+    cv.rectangle(
+      this.vista,
+      new cv.Point(zona.x, zona.y),
+      new cv.Point(zona.x + zona.w - 1, zona.y + zona.h - 1),
+      new cv.Scalar(255, 255, 255, 255),
+      1,
+      cv.LINE_8,
+    )
+  }
+
   /** Imagem da câmera com o contorno e o centróide desenhados. */
   desenharVista(canvas) {
     this.cv.imshow(canvas, this.vista)
@@ -179,7 +215,8 @@ export class RastreadorDeCor {
   liberar() {
     const mats = [
       this.rgba, this.rgb, this.suave, this.hsv, this.mascara, this.mascaraAux,
-      this.aberta, this.final, this.vista, this.hierarquia, ...this.limites,
+      this.aberta, this.final, this.vista, this.gesto, this.mascaraDilatada,
+      this.hierarquia, ...this.limites,
       ...this.kernels.values(),
     ]
     for (const m of mats) m.delete()
