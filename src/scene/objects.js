@@ -88,6 +88,50 @@ function criarRaquete(cor, transparente) {
   return raquete
 }
 
+/** Placar desenhado num canvas 2D e usado como textura de um plano 3D. */
+function criarPlacar() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1024
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  const textura = new THREE.CanvasTexture(canvas)
+  textura.colorSpace = THREE.SRGBColorSpace
+  textura.anisotropy = 8
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(5, 1.25),
+    new THREE.MeshBasicMaterial({ map: textura, transparent: true, toneMapped: false }),
+  )
+  let ultimo = ''
+
+  function desenhar(placar, pontosParaVencer) {
+    const chave = `${placar.jogador}-${placar.cpu}-${pontosParaVencer}`
+    if (chave === ultimo) return
+    ultimo = chave
+    const { width: w, height: h } = canvas
+    ctx.clearRect(0, 0, w, h)
+    ctx.fillStyle = 'rgba(7, 11, 22, 0.75)'
+    ctx.beginPath()
+    ctx.roundRect(8, 8, w - 16, h - 16, 40)
+    ctx.fill()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '600 64px system-ui, sans-serif'
+    ctx.fillStyle = '#38e1ff'
+    ctx.fillText('VOCÊ', w * 0.18, h * 0.45)
+    ctx.fillStyle = '#ff5a5f'
+    ctx.fillText('CPU', w * 0.82, h * 0.45)
+    ctx.font = '800 130px system-ui, sans-serif'
+    ctx.fillStyle = '#e8ecf8'
+    ctx.fillText(`${placar.jogador}  ×  ${placar.cpu}`, w * 0.5, h * 0.48)
+    ctx.font = '500 34px system-ui, sans-serif'
+    ctx.fillStyle = '#9aa6c7'
+    ctx.fillText(`primeiro a ${pontosParaVencer} pontos`, w * 0.5, h * 0.86)
+    textura.needsUpdate = true
+  }
+
+  return { mesh, desenhar }
+}
+
 export function criarObjetos(scene) {
   const grupo = new THREE.Group()
   scene.add(grupo)
@@ -190,6 +234,11 @@ export function criarObjetos(scene) {
   mira.position.z = Z_RAQUETE_JOGADOR - 0.02
   grupo.add(mira)
 
+  // Placar acima da boca do túnel, voltado para a câmera.
+  const placar = criarPlacar()
+  placar.mesh.position.set(0, H / 2 + 0.95, Z_RAQUETE_JOGADOR)
+  grupo.add(placar.mesh)
+
   // ---- efeitos ----
   const brilho = { jogador: 0, cpu: 0, anel: 0 }
 
@@ -216,6 +265,8 @@ export function criarObjetos(scene) {
     raqueteJogador.position.y = jogo.jogador.y
     raqueteCpu.position.x = jogo.cpu.x
     raqueteCpu.position.y = jogo.cpu.y
+
+    placar.desenhar(jogo.placar, jogo.config.pontosParaVencer)
 
     // decaimento exponencial dos brilhos de impacto
     const decaimento = Math.exp(-dt * 6)
